@@ -1,0 +1,197 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: openliberty-configmap
+  annotations:
+    iconClass: icon-openliberty
+    tags: openliberty, java, microservice
+    template.openshift.io/provider-display-name: "IBM"
+    template.openshift.io/documentation-url: "https://launcher.fabric8.io/docs/openliberty-runtime.html"
+    description: >-
+      The Externalized Configuration example shows how to use a ConfigMap to externalize configuration.
+parameters:
+- name: SOURCE_REPOSITORY_URL
+  description: The source URL for the application
+  displayName: Source URL
+  value: https://github.com/PurpleLiberty/example-configmap.git
+  required: true
+- name: SOURCE_REPOSITORY_REF
+  description: The branch name for the application
+  displayName: Source Branch
+  value: master
+  required: true
+- name: SOURCE_REPOSITORY_DIR
+  description: The location within the source repo of the application
+  displayName: Source Directory
+  value: .
+  required: true
+- name: GITHUB_WEBHOOK_SECRET
+  description: A secret string used to configure the GitHub webhook.
+  displayName: GitHub Webhook Secret
+  required: true
+  from: '[a-zA-Z0-9]{40}'
+  generate: expression
+- name: MAVEN_MIRROR_URL
+  description: URL of a Maven repository that will be used during build phase as a global Maven mirror
+  displayName: Maven Mirror URL
+  required: false
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: openliberty-configmap
+  spec: {}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: runtime-openliberty-configmap
+  spec:
+    tags:
+    - name: latest
+      from:
+        kind: DockerImage
+        name: docker.io/openliberty/open-liberty-s2i:19.0.0.9
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    name: openliberty-configmap
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: openliberty-configmap:latest
+    postCommit: {}
+    resources: {}
+    source:
+      git:
+        uri: ${SOURCE_REPOSITORY_URL}
+        ref: ${SOURCE_REPOSITORY_REF}
+      #contextDir: ${SOURCE_REPOSITORY_DIR}
+      type: Git
+    strategy:
+      sourceStrategy:
+        from:
+          kind: ImageStreamTag
+          name: runtime-openliberty-configmap:latest
+        incremental: true
+        env:
+        - name: MAVEN_ARGS_APPEND
+          value: "-pl ${SOURCE_REPOSITORY_DIR}"
+        - name: MAVEN_MIRROR_URL
+          value: "${MAVEN_MIRROR_URL}"
+        - name: LIBERTY_RUNNABLE_JAR
+          value: configmap-openliberty.jar
+        - name: ARTIFACT_DIR
+          value: "${SOURCE_REPOSITORY_DIR}/target"          
+      type: Source
+    triggers:
+    - github:
+        secret: ${GITHUB_WEBHOOK_SECRET}
+      type: GitHub
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+  status:
+    lastVersion: 0
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      expose: "true"
+      app: openliberty-configmap
+      group: io.openliberty.example
+    name: openliberty-configmap
+  spec:
+    ports:
+    - name: http
+      port: 9080
+      protocol: TCP
+      targetPort: 9080
+    selector:
+      app: openliberty-configmap
+      group: io.openliberty.example
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: openliberty-configmap
+      group: io.openliberty.example
+    name: openliberty-configmap
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 2
+    selector:
+      app: openliberty-configmap
+      group: io.openliberty.example
+    strategy:
+      rollingParams:
+        timeoutSeconds: 3600
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          app: openliberty-configmap
+          group: io.openliberty.example
+      spec:
+        containers:                    
+        - env:
+          - name: GREETING_MESSAGE       
+            valueFrom:
+              configMapKeyRef:
+                name: app-config
+                key: greeting.message
+                optional: true
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace          
+          image: openliberty-configmap:latest
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9080
+              scheme: HTTP
+            initialDelaySeconds: 180
+          name: openliberty
+          ports:
+          - containerPort: 9080
+            name: http
+            protocol: TCP
+          - containerPort: 9779
+            name: prometheus
+            protocol: TCP
+          - containerPort: 8778
+            name: jolokia
+            protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 9080
+              scheme: HTTP
+            initialDelaySeconds: 10
+          securityContext:
+            privileged: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - openliberty
+        from:
+          kind: ImageStreamTag
+          name: openliberty-configmap:latest
+      type: ImageChange
+- apiVersion: v1
+  kind: Route
+  metadata:
+    labels:
+      app: openliberty-configmap
+      group: io.openliberty.example
+    name: openliberty-configmap
+  spec:
+    port:
+      targetPort: 9080
+    to:
+      kind: Service
+      name: openliberty-configmap

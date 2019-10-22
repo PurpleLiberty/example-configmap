@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  greeting.message: "Hello %s from a ConfigMap!"
+  some.key: "VALUE"
+      
