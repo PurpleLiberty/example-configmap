@@ -13,6 +13,6 @@
  <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"
                 id="defaultHttpEndpoint" host="*" />
 
-  <webApplication name="ConfigMapTest" location="configmap.war" contextRoot="${app.context.root}"/>
+  <webApplication name="ConfigMapTest" location="${project.artifactId}.war" contextRoot="${app.context.root}"/>
 
 </server>

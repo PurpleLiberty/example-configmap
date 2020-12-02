@@ -209,6 +209,7 @@
                                 <default.http.port>${http.port}</default.http.port>
                                 <default.https.port>${https.port}</default.https.port>
                                 <app.context.root>/</app.context.root>
+                                <project.artifactId>${project.artifactId}</project.artifactId>
                             </bootstrapProperties>
                         </configuration>
                     </execution>
