@@ -38,7 +38,7 @@
         <version.fabric8-openshift-client>4.5.0</version.fabric8-openshift-client>
         <version.maven-surefire-plugin>2.22.2</version.maven-surefire-plugin>
         <version.restassured>4.1.1</version.restassured>
-        <version.resteasy>3.6.2.Final</version.resteasy>
+        <version.resteasy>4.5.7.Final</version.resteasy>
 
         <fabric8.generator.from>docker.io/openliberty/open-liberty-s2i:19.0.0.9</fabric8.generator.from>
     </properties>
